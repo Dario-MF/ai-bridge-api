@@ -4,6 +4,9 @@ function errorHandler(err, req, res, _next) {
   const code = err.code || 'AI_ANALYSIS_FAILED';
   const status = err.status || 500;
 
+  // Always log server-side for debugging
+  console.error(`[error] ${code} ${status} — ${err.message}`, err.cause || '');
+
   // Never expose internal error details in production
   const message = env.nodeEnv === 'production' && status >= 500
     ? 'Internal server error'
