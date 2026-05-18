@@ -1,0 +1,20 @@
+{
+  "name": "ai-bridge-api",
+  "version": "1.0.0",
+  "description": "Backend bridge API between a financial charting frontend and AI services",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "keywords": ["ai", "bridge", "api", "openai", "express"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "2.8.5",
+    "dotenv": "16.4.7",
+    "express": "4.21.2",
+    "express-rate-limit": "7.5.0",
+    "openai": "4.78.1"
+  }
+}
