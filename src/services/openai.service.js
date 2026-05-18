@@ -1,8 +1,9 @@
-const OpenAI = require('openai');
+const openaiSdk = require('openai');
 const { env } = require('../config/env');
 const { CHART_ANALYSIS_SYSTEM_PROMPT } = require('../prompts/chartAnalysis.prompt');
 
 let client;
+const OpenAI = openaiSdk.OpenAI || openaiSdk.default || openaiSdk;
 
 function getClient() {
   if (!env.openaiApiKey) {
@@ -25,14 +26,7 @@ async function generateChartAnalysis({ facts }) {
 
   let response;
   try {
-    response = await openai.responses.create({
-      model: env.openaiModel,
-      input: [
-        { role: 'system', content: CHART_ANALYSIS_SYSTEM_PROMPT },
-        { role: 'user', content: JSON.stringify(facts) },
-      ],
-      max_output_tokens: env.maxOutputTokens,
-    });
+    response = await createAnalysisResponse(openai, facts);
   } catch (err) {
     const wrapped = new Error('AI provider request failed');
     wrapped.code = 'AI_ANALYSIS_FAILED';
@@ -41,23 +35,58 @@ async function generateChartAnalysis({ facts }) {
     throw wrapped;
   }
 
-  const text = response.output_text ?? extractText(response);
+  const text = extractAnalysisText(response);
   return text;
 }
 
-function extractText(response) {
+async function createAnalysisResponse(openai, facts) {
+  if (openai.responses && typeof openai.responses.create === 'function') {
+    return openai.responses.create({
+      model: env.openaiModel,
+      input: [
+        { role: 'system', content: CHART_ANALYSIS_SYSTEM_PROMPT },
+        { role: 'user', content: JSON.stringify(facts) },
+      ],
+      max_output_tokens: env.maxOutputTokens,
+    });
+  }
+
+  return openai.chat.completions.create({
+    model: env.openaiModel,
+    messages: [
+      { role: 'system', content: CHART_ANALYSIS_SYSTEM_PROMPT },
+      { role: 'user', content: JSON.stringify(facts) },
+    ],
+    max_completion_tokens: env.maxOutputTokens,
+  });
+}
+
+function extractAnalysisText(response) {
+  if (typeof response.output_text === 'string' && response.output_text.trim()) {
+    return response.output_text.trim();
+  }
+
   if (response.output && Array.isArray(response.output)) {
     for (const item of response.output) {
       if (item.type === 'message' && Array.isArray(item.content)) {
         for (const block of item.content) {
           if (block.type === 'output_text' || block.type === 'text') {
-            return block.text;
+            return block.text.trim();
           }
         }
       }
     }
   }
-  return '';
+
+  const chatText = response.choices?.[0]?.message?.content;
+  if (typeof chatText === 'string' && chatText.trim()) {
+    return chatText.trim();
+  }
+
+  const err = new Error('AI provider returned an empty response');
+  err.code = 'AI_EMPTY_RESPONSE';
+  err.status = 502;
+  throw err;
 }
 
 module.exports = { generateChartAnalysis };
