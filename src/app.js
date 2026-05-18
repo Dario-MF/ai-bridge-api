@@ -9,6 +9,10 @@ const aiRoutes = require('./routes/ai.routes');
 
 const app = express();
 
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Body parsing
 app.use(express.json());
 
